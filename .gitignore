@@ -6,11 +6,15 @@
 *.ko
 *.obj
 *.elf
+*.axf
 
 # Linker output
 *.ilk
 *.map
 *.exp
+*.lst
+*.i
+*.cod
 
 # Precompiled Headers
 *.gch
@@ -35,12 +39,24 @@
 *.i*86
 *.x86_64
 *.hex
+*.bin
 
 # Debug files
+_build/
 *.dSYM/
 *.su
 *.idb
 *.pdb
+*.crf
+
+# Other files
+*.pack
+*.sct
+*.lnp
+*~
+
+# J-Link
+JLinkLog.txt
 
 # Kernel Module Compile Results
 *.mod*
