@@ -28,6 +28,7 @@
 #include "app_uart.h"
 #include "app_util_platform.h"
 #include "bsp_btn_ble.h"
+#include "nrf_drv_timer.h"
 
 #if defined (UART_PRESENT)
 #include "nrf_uart.h"
@@ -64,6 +65,12 @@
 
 #define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
+
+
+#define UART_RX_TIMEOUT_INTERVAL		3											/**< uart rx timeout interval(ms). */
+const nrf_drv_timer_t TIMER_UART_RX = NRF_DRV_TIMER_INSTANCE(2);					/**< Timer ID: Timer2. */											
+static uint8_t 	UART_RX_BUF[UART_RX_BUF_SIZE] = {0};					  			/**< uart receive buffer. */	
+static uint16_t UART_RX_STA = 0;
 
 
 BLE_NUS_DEF(m_nus);                                                                 /**< BLE NUS service instance. */
@@ -496,35 +503,17 @@ void bsp_event_handler(bsp_event_t event)
  *          'new line' '\n' (hex 0x0A) or if the string has reached the maximum data length.
  */
 /**@snippet [Handling the data received over UART] */
-void uart_event_handle(app_uart_evt_t * p_event)
+void uart_event_handler(app_uart_evt_t * p_event)
 {
-    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
-    static uint8_t index = 0;
-    uint32_t       err_code;
-
     switch (p_event->evt_type)
     {
         case APP_UART_DATA_READY:
-            UNUSED_VARIABLE(app_uart_get(&data_array[index]));
-            index++;
-
-            if ((data_array[index - 1] == '\n') || (index >= (m_ble_nus_max_data_len)))
-            {
-                NRF_LOG_DEBUG("Ready to send data over BLE NUS");
-                NRF_LOG_HEXDUMP_DEBUG(data_array, index);
-
-                do
-                {
-                    uint16_t length = (uint16_t)index;
-                    err_code = ble_nus_string_send(&m_nus, data_array, &length);
-                    if ( (err_code != NRF_ERROR_INVALID_STATE) && (err_code != NRF_ERROR_BUSY) )
-                    {
-                        APP_ERROR_CHECK(err_code);
-                    }
-                } while (err_code == NRF_ERROR_BUSY);
-
-                index = 0;
-            }
+			nrf_drv_timer_disable(&TIMER_UART_RX);
+			
+			UNUSED_VARIABLE(app_uart_get(&UART_RX_BUF[UART_RX_STA]));
+			UART_RX_STA++;	// Record the uart received data frame length
+			
+			nrf_drv_timer_enable(&TIMER_UART_RX);
             break;
 
         case APP_UART_COMMUNICATION_ERROR:
@@ -547,7 +536,7 @@ void uart_event_handle(app_uart_evt_t * p_event)
 /**@snippet [UART Initialization] */
 static void uart_init(void)
 {
-    uint32_t                     err_code;
+    uint32_t err_code;
     app_uart_comm_params_t const comm_params =
     {
         .rx_pin_no    = RX_PIN_NUMBER,
@@ -562,7 +551,7 @@ static void uart_init(void)
     APP_UART_FIFO_INIT(&comm_params,
                        UART_RX_BUF_SIZE,
                        UART_TX_BUF_SIZE,
-                       uart_event_handle,
+                       uart_event_handler,
                        APP_IRQ_PRIORITY_LOWEST,
                        err_code);
     APP_ERROR_CHECK(err_code);
@@ -637,6 +626,71 @@ static void power_manage(void)
 }
 
 
+/**@brief Function for handling uart rx timeout.
+ *
+ * @param[in] event_type    Timer event type. 
+ * @param[in] p_context     Unused.
+ */
+void timer_uart_rx_timeout_event_handler(nrf_timer_event_t event_type, void* p_context)
+{
+	uint32_t err_code;
+	
+	nrf_drv_timer_disable(&TIMER_UART_RX);
+	
+    switch (event_type)
+    {
+        case NRF_TIMER_EVENT_COMPARE0:
+			
+			NRF_LOG_INFO("Ready to send data over BLE NUS");
+			NRF_LOG_HEXDUMP_INFO(UART_RX_BUF, UART_RX_STA);
+
+			do
+			{
+				uint16_t length = (uint16_t)UART_RX_STA;
+				err_code = ble_nus_string_send(&m_nus, UART_RX_BUF, &length);
+				if ( (err_code != NRF_ERROR_INVALID_STATE) && (err_code != NRF_ERROR_BUSY) )
+				{
+					APP_ERROR_CHECK(err_code);
+				}
+			} while (err_code == NRF_ERROR_BUSY);
+			
+			UART_RX_STA=0;
+            break;
+
+        default:
+            //Do nothing.
+            break;
+    }
+}
+
+
+/**@brief Function for initializing hardware timer.
+ */
+void timer_uart_rx_timeout_init(void)
+{
+    uint32_t time_ticks;
+    ret_code_t err_code;
+
+	// Define and init timer_cfg struct
+	nrf_drv_timer_config_t timer_cfg = NRF_DRV_TIMER_DEFAULT_CONFIG;
+	
+	// Init timer
+	err_code = nrf_drv_timer_init(	&TIMER_UART_RX, 
+									&timer_cfg, 
+									timer_uart_rx_timeout_event_handler);// Register callback	
+	APP_ERROR_CHECK(err_code);
+
+	// Convert alarm time(ms) to ticks 
+	time_ticks = nrf_drv_timer_ms_to_ticks(&TIMER_UART_RX, UART_RX_TIMEOUT_INTERVAL);
+	
+	// Setup timer channel
+	nrf_drv_timer_extended_compare(	&TIMER_UART_RX, 
+									NRF_TIMER_CC_CHANNEL0,	// Timer channel 
+									time_ticks, 
+									NRF_TIMER_SHORT_COMPARE0_CLEAR_MASK, 
+									true);	
+}
+
 /**@brief Application main function.
  */
 int main(void)
@@ -647,6 +701,8 @@ int main(void)
     // Initialize.
     err_code = app_timer_init();
     APP_ERROR_CHECK(err_code);
+	
+	timer_uart_rx_timeout_init();
 
     uart_init();
     log_init();
