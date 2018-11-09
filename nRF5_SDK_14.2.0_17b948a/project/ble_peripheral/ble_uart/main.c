@@ -505,9 +505,41 @@ void bsp_event_handler(bsp_event_t event)
 /**@snippet [Handling the data received over UART] */
 void uart_event_handler(app_uart_evt_t * p_event)
 {
+<<<<<<< HEAD
     switch (p_event->evt_type)
     {
         case APP_UART_DATA_READY:
+=======
+//    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
+//    static uint8_t index = 0;
+//    uint32_t       err_code;
+
+    switch (p_event->evt_type)
+    {
+        case APP_UART_DATA_READY:
+		#if 0	
+            UNUSED_VARIABLE(app_uart_get(&data_array[index]));
+            index++;
+
+            if ((data_array[index - 1] == '\n') || (index >= (m_ble_nus_max_data_len)))
+            {
+                NRF_LOG_DEBUG("Ready to send data over BLE NUS");
+                NRF_LOG_HEXDUMP_DEBUG(data_array, index);
+
+                do
+                {
+                    uint16_t length = (uint16_t)index;
+                    err_code = ble_nus_string_send(&m_nus, data_array, &length);
+                    if ( (err_code != NRF_ERROR_INVALID_STATE) && (err_code != NRF_ERROR_BUSY) )
+                    {
+                        APP_ERROR_CHECK(err_code);
+                    }
+                } while (err_code == NRF_ERROR_BUSY);
+
+                index = 0;
+            }
+		#endif
+>>>>>>> 5f23e256e9f2fcd17f2b338b268dff94be4eb5a2
 			nrf_drv_timer_disable(&TIMER_UART_RX);
 			
 			UNUSED_VARIABLE(app_uart_get(&UART_RX_BUF[UART_RX_STA]));
