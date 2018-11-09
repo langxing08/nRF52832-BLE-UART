@@ -291,6 +291,47 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 /**@snippet [Handling the data received over BLE] */
 
 
+/**@brief Function for check uart received data whether is AT cmd or Pass-through data.
+ *
+ * @param[in] pBuffer   pointer of string.
+ * @param[in] length	Length of the data.
+ *
+ * @retval 1 AT command
+ * @retval 0 Pass-through data
+ */
+static uint8_t AT_cmd_check_valid(uint8_t *pBuffer, uint16_t length)
+{
+	// check whether is AT cmd or not	
+	if(length < 2) {
+		return 0;
+	}
+			
+	if(strncmp((char*)pBuffer, "AT", 2)!=0) {
+		return 0;
+	}
+
+	return 1;
+}
+
+
+/**@brief Function for process AT command.
+ *
+ * @param[in] pBuffer   pointer of string.
+ * @param[in] length	Length of the data.
+ */
+static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
+{
+	ret_code_t err_code;
+	uint8_t i;
+	
+	// AT test: AT?\r\n
+	if((length == 5) && (strncmp((char*)pBuffer, "AT?\r\n", 5) == 0))
+	{
+		printf("AT:OK\r\n");
+	}
+	
+}
+
 /**@brief Function for feed WDT.
  *
  * @param[in] p_context   Unused.
@@ -783,10 +824,17 @@ void timer_uart_rx_timeout_event_handler(nrf_timer_event_t event_type, void* p_c
     switch (event_type)
     {
         case NRF_TIMER_EVENT_COMPARE0:
-			
-			err_code = ble_send_data(UART_RX_BUF, UART_RX_STA);
-			NRF_LOG_INFO("first_send,err_code:%x", err_code);
-			APP_ERROR_CHECK(err_code);
+			if(AT_cmd_check_valid(UART_RX_BUF, UART_RX_STA))  // AT command
+			{
+				AT_cmd_handle(UART_RX_BUF, UART_RX_STA);
+			}
+			else  // Pass-through data
+			{
+				err_code = ble_send_data(UART_RX_BUF, UART_RX_STA);
+				NRF_LOG_INFO("first_send,err_code:%x", err_code);
+				APP_ERROR_CHECK(err_code);
+			}
+
 			
 			UART_RX_STA=0;
             break;
