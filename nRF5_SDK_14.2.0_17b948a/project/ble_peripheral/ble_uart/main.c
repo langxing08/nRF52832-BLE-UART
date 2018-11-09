@@ -29,6 +29,7 @@
 #include "app_util_platform.h"
 #include "bsp_btn_ble.h"
 #include "nrf_drv_timer.h"
+#include "nrf_drv_wdt.h"
 
 #if defined (UART_PRESENT)
 #include "nrf_uart.h"
@@ -66,16 +67,19 @@
 #define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
 
+#define WDT_FEED_INTERVALY				APP_TIMER_TICKS(500)						/**< WDT feed interval. */
 
 #define UART_RX_TIMEOUT_INTERVAL		3											/**< uart rx timeout interval(ms). */
 const nrf_drv_timer_t TIMER_UART_RX = NRF_DRV_TIMER_INSTANCE(2);					/**< Timer ID: Timer2. */											
 static uint8_t 	UART_RX_BUF[UART_RX_BUF_SIZE] = {0};					  			/**< uart receive buffer. */	
 static uint16_t UART_RX_STA = 0;
 
-
+APP_TIMER_DEF(wdt_feed_timer_id);													/**< WDT feed delay timer instance. */
 BLE_NUS_DEF(m_nus);                                                                 /**< BLE NUS service instance. */
 NRF_BLE_GATT_DEF(m_gatt);                                                           /**< GATT module instance. */
 BLE_ADVERTISING_DEF(m_advertising);                                                 /**< Advertising module instance. */
+
+nrf_drv_wdt_channel_id m_channel_id;	// wdt channel id
 
 static uint16_t   m_conn_handle          = BLE_CONN_HANDLE_INVALID;                 /**< Handle of the current connection. */
 static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
@@ -202,6 +206,19 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 }
 
 
+/**@brief Function for wdt feed timers.
+ *
+ * @details Starts application wdt feed timers.
+ */
+static void wdt_feed_timers_start(void)
+{
+	ret_code_t err_code;
+
+    err_code = app_timer_start(wdt_feed_timer_id, WDT_FEED_INTERVALY, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+
 /**@brief Function for the GAP initialization.
  *
  * @details This function will set up all the necessary GAP (Generic Access Profile) parameters of
@@ -272,6 +289,25 @@ static void nus_data_handler(ble_nus_evt_t * p_evt)
 
 }
 /**@snippet [Handling the data received over BLE] */
+
+
+/**@brief Function for feed WDT.
+ *
+ * @param[in] p_context   Unused.
+ */
+static void wdt_feed_timer_handler(void * p_context)
+{
+	nrf_drv_wdt_channel_feed(m_channel_id);
+}
+
+
+/**
+ * @brief WDT events handler.
+ */
+void wdt_event_handler(void)
+{
+    // NOTE: The max amount of time we can spend in WDT interrupt is two cycles of 32768[Hz] clock - after that, reset occurs
+}
 
 
 /**@brief Function for initializing services that will be used by the application.
@@ -789,6 +825,41 @@ void timer_uart_rx_timeout_init(void)
 									true);	
 }
 
+/**@brief Function for the Timer initialization.
+ *
+ * @details Initializes the timer module. This initial and creates application timers.
+ */
+static void timers_init(void)
+{
+    ret_code_t err_code;
+
+	err_code = app_timer_init();
+    APP_ERROR_CHECK(err_code);
+
+    err_code = app_timer_create(&wdt_feed_timer_id, 
+								APP_TIMER_MODE_REPEATED, 
+								wdt_feed_timer_handler);
+    APP_ERROR_CHECK(err_code);		
+}
+
+
+/**@brief Function for initializing the wdt module. */
+void wdt_init(void)
+{
+	// Configure WDT.
+	uint32_t err_code = NRF_SUCCESS;
+	
+    nrf_drv_wdt_config_t config = NRF_DRV_WDT_DEAFULT_CONFIG;
+    err_code = nrf_drv_wdt_init(&config, wdt_event_handler);
+    APP_ERROR_CHECK(err_code);
+	
+    err_code = nrf_drv_wdt_channel_alloc(&m_channel_id);
+    APP_ERROR_CHECK(err_code);
+	
+    nrf_drv_wdt_enable();
+}
+
+
 /**@brief Application main function.
  */
 int main(void)
@@ -797,8 +868,7 @@ int main(void)
     bool     erase_bonds;
 
     // Initialize.
-    err_code = app_timer_init();
-    APP_ERROR_CHECK(err_code);
+    timers_init();
 	
 	timer_uart_rx_timeout_init();
 
@@ -812,6 +882,9 @@ int main(void)
     services_init();
     advertising_init();
     conn_params_init();
+	
+	wdt_init();
+	wdt_feed_timers_start();
 
     printf("\r\nBLE_UART Start!\r\n");
     NRF_LOG_INFO("BLE_UART Start!");
