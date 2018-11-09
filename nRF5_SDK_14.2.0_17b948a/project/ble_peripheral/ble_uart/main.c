@@ -115,12 +115,12 @@ static uint32_t send_data(void)
 
 	do { 
 		dif_value = max_len - start; 
-		temp_len = (dif_value > 20) ? 20 : dif_value; // get min data length
+		temp_len = (dif_value > m_ble_nus_max_data_len) ? m_ble_nus_max_data_len : dif_value; // get min data length
 
 		err_code = ble_nus_string_send(&m_nus, pdata + start, &temp_len); 
 		
-		NRF_LOG_INFO("BLE notify:");
-		NRF_LOG_HEXDUMP_INFO(pdata + start, temp_len);	
+//		NRF_LOG_INFO("BLE notify:");
+//		NRF_LOG_HEXDUMP_INFO(pdata + start, temp_len);	
 		
 		if (NRF_SUCCESS == err_code)
 		{ 
