@@ -85,6 +85,106 @@ static ble_uuid_t m_adv_uuids[]          =                                      
 };
 
 
+typedef struct ble_send_msg_tag{ 
+	uint16_t start;		// Data Start Offset
+	uint16_t max_len;	// Data Length
+	uint8_t  *pdata; 	// Pointer to Data
+}ble_send_msg_t; 
+
+ble_send_msg_t g_send_msg;
+
+
+/**@brief Function for the BLE send data which received by uart.
+ *
+ * @details This function will unpacking the uart received data,
+ *          each packet at most 20 Bytes. 
+ *			Then send the unpacket data over BLE until the
+ *			ble_nus_string_send not success or send fineshed.
+ *  
+ * @return NRF_SUCCESS on success, otherwise an error code.
+ */
+static uint32_t send_data(void)
+{
+	uint16_t temp_len; 
+	uint16_t dif_value; 
+	uint32_t err_code = NRF_SUCCESS;
+
+	uint8_t *pdata = g_send_msg.pdata; 
+	uint16_t start = g_send_msg.start; 
+	uint16_t max_len = g_send_msg.max_len; 
+
+	do { 
+		dif_value = max_len - start; 
+		temp_len = (dif_value > 20) ? 20 : dif_value; // get min data length
+
+		err_code = ble_nus_string_send(&m_nus, pdata + start, &temp_len); 
+		
+		NRF_LOG_INFO("BLE notify:");
+		NRF_LOG_HEXDUMP_INFO(pdata + start, temp_len);	
+		
+		if (NRF_SUCCESS == err_code)
+		{ 
+			start += temp_len;
+		}
+	} while((NRF_SUCCESS == err_code) && ((max_len - start) > 0)); 
+
+	g_send_msg.start = start;
+	
+	return err_code; 
+}
+
+
+/**@brief Function for the first time BLE send data.
+ * 
+ * @details The first time, BLE at most send 7 packets.
+ *			Fuction return should be handle at other funchtion , and return 
+ *			NRF_ERROR_BUSY and BLE_ERROR_NO_TX_BUFFERS should be regard as normal result,
+ *			bacause no start offset changes.
+ *
+ * @param[in] pdata  Data to be sent.
+ * @param[in] len    Length of the data. Amount of sent bytes.
+ *
+ * @return NRF_SUCCESS on success, otherwise an error code. 
+ */
+static uint32_t ble_send_data(uint8_t *pdata, uint16_t len)
+{ 
+	if((NULL == pdata) || (len <= 0))
+	{
+		return NRF_ERROR_INVALID_PARAM;
+	}
+
+	uint32_t err_code = NRF_SUCCESS; 
+	g_send_msg.start = 0; 
+	g_send_msg.max_len = len; 
+	g_send_msg.pdata = pdata; 
+
+	err_code = send_data(); 
+	return err_code;
+}
+
+
+/**@brief Function for the second time BLE send data.
+ * 
+ * @details This function will process BLE send data until finished.
+ *
+ * @return NRF_SUCCESS on success, otherwise an error code. 
+ */
+static uint32_t ble_send_more_data(void)
+{ 
+	uint32_t err_code; 
+	uint16_t dif_value; 
+
+	dif_value = g_send_msg.max_len - g_send_msg.start; 
+	if((0 == dif_value) || (NULL == g_send_msg.pdata))
+	{
+		return NRF_SUCCESS;  // After the completion of the data, return
+	}
+
+	err_code = send_data();
+	return err_code; 
+}
+
+
 /**@brief Function for assert macro callback.
  *
  * @details This function will be called in case of an assert in the SoftDevice.
@@ -397,6 +497,13 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
                 }
             }
         } break; // BLE_GATTS_EVT_RW_AUTHORIZE_REQUEST
+		
+		case BLE_GATTS_EVT_HVN_TX_COMPLETE:	
+			// Send unfished uart received data to BLE
+			err_code = ble_send_more_data();
+			NRF_LOG_INFO("second_send,err_code:%x", err_code);
+			APP_ERROR_CHECK(err_code);
+			break;		
 
         default:
             // No implementation needed.
@@ -505,41 +612,9 @@ void bsp_event_handler(bsp_event_t event)
 /**@snippet [Handling the data received over UART] */
 void uart_event_handler(app_uart_evt_t * p_event)
 {
-<<<<<<< HEAD
     switch (p_event->evt_type)
     {
         case APP_UART_DATA_READY:
-=======
-//    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
-//    static uint8_t index = 0;
-//    uint32_t       err_code;
-
-    switch (p_event->evt_type)
-    {
-        case APP_UART_DATA_READY:
-		#if 0	
-            UNUSED_VARIABLE(app_uart_get(&data_array[index]));
-            index++;
-
-            if ((data_array[index - 1] == '\n') || (index >= (m_ble_nus_max_data_len)))
-            {
-                NRF_LOG_DEBUG("Ready to send data over BLE NUS");
-                NRF_LOG_HEXDUMP_DEBUG(data_array, index);
-
-                do
-                {
-                    uint16_t length = (uint16_t)index;
-                    err_code = ble_nus_string_send(&m_nus, data_array, &length);
-                    if ( (err_code != NRF_ERROR_INVALID_STATE) && (err_code != NRF_ERROR_BUSY) )
-                    {
-                        APP_ERROR_CHECK(err_code);
-                    }
-                } while (err_code == NRF_ERROR_BUSY);
-
-                index = 0;
-            }
-		#endif
->>>>>>> 5f23e256e9f2fcd17f2b338b268dff94be4eb5a2
 			nrf_drv_timer_disable(&TIMER_UART_RX);
 			
 			UNUSED_VARIABLE(app_uart_get(&UART_RX_BUF[UART_RX_STA]));
@@ -673,18 +748,9 @@ void timer_uart_rx_timeout_event_handler(nrf_timer_event_t event_type, void* p_c
     {
         case NRF_TIMER_EVENT_COMPARE0:
 			
-			NRF_LOG_INFO("Ready to send data over BLE NUS");
-			NRF_LOG_HEXDUMP_INFO(UART_RX_BUF, UART_RX_STA);
-
-			do
-			{
-				uint16_t length = (uint16_t)UART_RX_STA;
-				err_code = ble_nus_string_send(&m_nus, UART_RX_BUF, &length);
-				if ( (err_code != NRF_ERROR_INVALID_STATE) && (err_code != NRF_ERROR_BUSY) )
-				{
-					APP_ERROR_CHECK(err_code);
-				}
-			} while (err_code == NRF_ERROR_BUSY);
+			err_code = ble_send_data(UART_RX_BUF, UART_RX_STA);
+			NRF_LOG_INFO("first_send,err_code:%x", err_code);
+			APP_ERROR_CHECK(err_code);
 			
 			UART_RX_STA=0;
             break;
@@ -749,14 +815,19 @@ int main(void)
 
     printf("\r\nBLE_UART Start!\r\n");
     NRF_LOG_INFO("BLE_UART Start!");
+	
     err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
 
     // Enter main loop.
     for (;;)
     {
-        UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
-        power_manage();
+//        UNUSED_RETURN_VALUE(NRF_LOG_PROCESS());
+		
+        if (NRF_LOG_PROCESS() == false)
+        {
+            power_manage();
+        }
     }
 }
 
