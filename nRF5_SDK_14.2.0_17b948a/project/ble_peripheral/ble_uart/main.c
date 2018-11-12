@@ -111,6 +111,9 @@ typedef struct ble_send_msg_tag{
 ble_send_msg_t g_send_msg;
 
 
+static uint32_t uart_init(uint32_t baudrate);
+
+
 /**@brief Function for the BLE send data which received by uart.
  *
  * @details This function will unpacking the uart received data,
@@ -423,6 +426,39 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 		else
 		{
 			printf("AT+DISCON:ERP\r\n");
+		}
+	}
+
+	// Uart baudrate setup: AT+BAUD=N\r\n, N ranges from 0 to 8
+	else if((length == 11) && (strncmp((char*)pBuffer, "AT+BAUD=", 8) == 0))//baudrate setup
+	{
+		uint32_t uart_baudrate[9] = {
+						UART_BAUDRATE_BAUDRATE_Baud4800,	// 4800
+						UART_BAUDRATE_BAUDRATE_Baud9600, 	// 9600
+						UART_BAUDRATE_BAUDRATE_Baud19200, 	// 19200
+						UART_BAUDRATE_BAUDRATE_Baud38400, 	// 38400
+						UART_BAUDRATE_BAUDRATE_Baud57600, 	// 57600
+						UART_BAUDRATE_BAUDRATE_Baud115200, 	// 115200
+						UART_BAUDRATE_BAUDRATE_Baud230400, 	// 230400
+						UART_BAUDRATE_BAUDRATE_Baud460800,	// 460800
+						UART_BAUDRATE_BAUDRATE_Baud921600};	// 921600
+		if((pBuffer[8] >= '0') && (pBuffer[8] < '9'))
+		{
+			app_uart_close();
+			err_code = uart_init(uart_baudrate[pBuffer[8] - '0']);
+			if(err_code == NRF_SUCCESS)
+			{
+				printf("AT+BAUD:OK\r\n");
+			}
+			else
+			{
+				printf("AT+BAUD:FAIL\r\n");
+			}
+			APP_ERROR_CHECK(err_code);
+		}
+		else
+		{
+			printf("AT+BAUD:ERP\r\n");
 		}
 	}	
 }
@@ -815,9 +851,13 @@ void uart_event_handler(app_uart_evt_t * p_event)
 
 
 /**@brief  Function for initializing the UART module.
+ *
+ * @param[in] baudrate   uart baudrate 
+ *
+ * @return NRF_SUCCESS on success, otherwise an error code.  
  */
 /**@snippet [UART Initialization] */
-static void uart_init(void)
+static uint32_t uart_init(uint32_t baudrate)
 {
     uint32_t err_code;
     app_uart_comm_params_t const comm_params =
@@ -828,7 +868,7 @@ static void uart_init(void)
         .cts_pin_no   = CTS_PIN_NUMBER,
         .flow_control = APP_UART_FLOW_CONTROL_DISABLED,
         .use_parity   = false,
-        .baud_rate    = NRF_UART_BAUDRATE_115200
+        .baud_rate    = baudrate
     };
 
     APP_UART_FIFO_INIT(&comm_params,
@@ -837,7 +877,8 @@ static void uart_init(void)
                        uart_event_handler,
                        APP_IRQ_PRIORITY_LOWEST,
                        err_code);
-    APP_ERROR_CHECK(err_code);
+//    APP_ERROR_CHECK(err_code);
+	return err_code;
 }
 /**@snippet [UART Initialization] */
 
@@ -1019,7 +1060,9 @@ int main(void)
 	
 	timer_uart_rx_timeout_init();
 
-    uart_init();
+    err_code = uart_init(UART_BAUDRATE_BAUDRATE_Baud115200);
+	APP_ERROR_CHECK(err_code);
+	
     log_init();
 
     buttons_leds_init(&erase_bonds);
