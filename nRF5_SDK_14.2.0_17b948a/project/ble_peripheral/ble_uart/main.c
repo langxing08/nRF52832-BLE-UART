@@ -488,7 +488,7 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 		}
 	}
 	
-	// Adv interval setup: AT+ADV=value\r\n
+	// Adv interval setup: AT+ADV=<adv_interval>\r\n
 	else if((length >= 10) && (strncmp((char*)pBuffer, "AT+ADV=", 7) == 0))
 	{
 		uint32_t adv_interval_temp;
@@ -515,6 +515,75 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 		else
 		{
 			printf("AT+ADV:ERP\r\n");
+		}
+	}
+	
+// Connection interval setup:AT+CON=<min_connect_interval>,<max_connect_interval>,<slave_latency>,<conn_sup_timeout>\r\n
+	else if((length >= 16) && (strncmp((char*)pBuffer, "AT+CON=", 7) == 0))
+	{
+		ble_gap_conn_params_t   gap_conn_params;
+		
+		uint32_t min_conn_interval_tmp;	// MIN_CONN_INTERVAL
+		uint32_t max_conn_interval_tmp;	// MAX_CONN_INTERVAL
+		uint32_t slave_latency_tmp;		// SLAVE_LATENCY
+		uint32_t conn_sup_timeout_tmp;	// CONN_SUP_TIMEOUT
+
+		if(ble_status == BLE_STATUS_CONNECTED)
+		{
+			memset(&gap_conn_params, 0, sizeof(gap_conn_params));
+
+			sscanf((char*)pBuffer, "AT+CON=%x,%x,%x,%x\r\n", 
+									&min_conn_interval_tmp,	
+									&max_conn_interval_tmp,	
+									&slave_latency_tmp,		
+									&conn_sup_timeout_tmp);	
+
+//			printf("set connect_interval min:0x%X,max:0x%X,slave_latency:0x%X,timeout:0x%X\r\n", 
+//						min_conn_interval_tmp, max_conn_interval_tmp, 
+//						slave_latency_tmp, conn_sup_timeout_tmp);
+		
+			if((min_conn_interval_tmp >= 0x0006) 
+				&& (min_conn_interval_tmp <= max_conn_interval_tmp) 
+				&& (max_conn_interval_tmp <= 0x0C80) 
+				&& (slave_latency_tmp <= 499) 
+				&& (conn_sup_timeout_tmp >= 1) 
+				&& (conn_sup_timeout_tmp <= 3200)
+				&& ((conn_sup_timeout_tmp*10.0) > (1 + slave_latency_tmp)*(max_conn_interval_tmp*5.0/4)))
+			{
+				gap_conn_params.min_conn_interval = min_conn_interval_tmp;
+				gap_conn_params.max_conn_interval = max_conn_interval_tmp;
+				gap_conn_params.slave_latency = slave_latency_tmp;
+				gap_conn_params.conn_sup_timeout = conn_sup_timeout_tmp;
+				
+				err_code = sd_ble_gap_conn_param_update(m_conn_handle, &gap_conn_params);
+				if(err_code == NRF_SUCCESS)
+				{
+					printf("AT+CON:OK\r\n");
+				}
+				else
+				{
+					printf("AT+CON:FAIL\r\n");
+				}
+				APP_ERROR_CHECK(err_code);		
+				
+
+				err_code = sd_ble_gap_ppcp_get(&gap_conn_params);
+				APP_ERROR_CHECK(err_code);
+				
+				NRF_LOG_INFO("Connect Parameter:%d,%d,%d,%d",
+							min_conn_interval_tmp,
+							max_conn_interval_tmp,
+							slave_latency_tmp,
+							conn_sup_timeout_tmp);		
+			}
+			else
+			{
+				printf("AT+CON:ERP\r\n");
+			}
+		}
+		else
+		{
+			printf("AT+CON:ERP\r\n");
 		}
 	}
 	
