@@ -330,6 +330,11 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 		printf("AT:OK\r\n");
 	}
 	
+	// System soft reset: AT+RESET\r\n
+	else if((length == 10) && (strncmp((char*)pBuffer, "AT+RESET\r\n", 10) == 0))
+	{		
+		NVIC_SystemReset();	// Restart the system by default	
+	}	
 }
 
 /**@brief Function for feed WDT.
@@ -934,7 +939,7 @@ int main(void)
 	wdt_init();
 	wdt_feed_timers_start();
 
-    printf("\r\nBLE_UART Start!\r\n");
+    printf("\r\nAT+RESET:OK\r\n");
     NRF_LOG_INFO("BLE_UART Start!");
 	
     err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
