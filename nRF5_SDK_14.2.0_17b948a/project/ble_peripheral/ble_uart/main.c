@@ -404,6 +404,27 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 		printf("AT+STATUS:%X\r\n", ble_status);//ble_status
 	}
 	
+	// Disconnet connection: AT+DISCON\r\n
+	else if((length == 11) && (strncmp((char*)pBuffer, "AT+DISCON\r\n", 11) == 0))
+	{
+		if(ble_status == BLE_STATUS_CONNECTED)
+		{
+			err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_REMOTE_USER_TERMINATED_CONNECTION);
+			if(err_code == NRF_SUCCESS)
+			{
+				printf("AT+DISCON:OK\r\n");
+			}
+			else
+			{
+				printf("AT+DISCON:FAIL\r\n");
+			}
+			APP_ERROR_CHECK(err_code);
+		}
+		else
+		{
+			printf("AT+DISCON:ERP\r\n");
+		}
+	}	
 }
 
 /**@brief Function for feed WDT.
