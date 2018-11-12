@@ -206,6 +206,34 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 }
 
 
+/**@brief Function for convert Bluetooth MAC address to string.
+ *
+ * @param[in] pAddr   Bluetooth MAC address.
+ * 
+ * @return BD address as a string.
+ */
+char *Util_convertBdAddr2Str(uint8_t *pAddr)
+{
+  uint8_t     charCnt;
+  char        hex[] = "0123456789ABCDEF";
+  static char str[(BLE_GAP_ADDR_LEN << 1)+1];
+  char        *pStr = str;
+
+  // Start from end of addr
+  pAddr += BLE_GAP_ADDR_LEN;
+
+  for (charCnt = BLE_GAP_ADDR_LEN; charCnt > 0; charCnt--)
+  {
+    *pStr++ = hex[*--pAddr >> 4];
+    *pStr++ = hex[*pAddr & 0x0F];
+  }
+
+  pStr = NULL;
+
+  return str;
+}
+
+
 /**@brief Function for wdt feed timers.
  *
  * @details Starts application wdt feed timers.
@@ -322,7 +350,7 @@ static uint8_t AT_cmd_check_valid(uint8_t *pBuffer, uint16_t length)
 static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 {
 	ret_code_t err_code;
-	uint8_t i;
+//	uint8_t i;
 	
 	// AT test: AT?\r\n
 	if((length == 5) && (strncmp((char*)pBuffer, "AT?\r\n", 5) == 0))
@@ -334,6 +362,21 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 	else if((length == 10) && (strncmp((char*)pBuffer, "AT+RESET\r\n", 10) == 0))
 	{		
 		NVIC_SystemReset();	// Restart the system by default	
+	}	
+
+	// MAC address check: AT+MAC?\r\n
+	else if((length == 9) && (strncmp((char*)pBuffer, "AT+MAC?\r\n", 6) == 0))// check MAC addr
+	{
+		// Get BLE address.
+		ble_gap_addr_t device_addr;
+		#if (NRF_SD_BLE_API_VERSION >= 3)
+			err_code = sd_ble_gap_addr_get(&device_addr);
+		#else
+			err_code = sd_ble_gap_address_get(&device_addr);
+		#endif
+		APP_ERROR_CHECK(err_code);
+
+		printf("AT+MAC:%s\r\n", Util_convertBdAddr2Str(device_addr.addr));
 	}	
 }
 
