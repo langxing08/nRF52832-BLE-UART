@@ -460,7 +460,32 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 		{
 			printf("AT+BAUD:ERP\r\n");
 		}
-	}	
+	}
+	
+	// Tx power setup: AT+TXPW=N\r\n, N ranges from 0 to 8
+	else if((length == 11) && (strncmp((char*)pBuffer, "AT+TXPW=", 8) == 0))
+	{
+		int8_t tx_power_level[9] = {-40, -20, -16, -12, -8, -4, 0, 3, 4};
+		
+		if((pBuffer[8] >= '0') && (pBuffer[8] < '9'))
+		{
+			err_code = sd_ble_gap_tx_power_set(tx_power_level[pBuffer[8] - '0']);
+			if(err_code == NRF_SUCCESS)
+			{
+				printf("AT+TXPW:OK\r\n");
+			}
+			else
+			{
+				printf("AT+TXPW:FAIL\r\n");
+			}
+			APP_ERROR_CHECK(err_code);		
+		}
+		else
+		{
+			printf("AT+TXPW:ERP\r\n");
+		}
+	}
+	
 }
 
 /**@brief Function for feed WDT.
