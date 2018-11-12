@@ -42,6 +42,10 @@
 #include "nrf_log_ctrl.h"
 #include "nrf_log_default_backends.h"
 
+#define HARDWARE_NUMBER					"HW_1.2"
+#define SOFTWARE_NUMBER					"SW_1.0.3"
+#define FIRMWARE_NUMBER					"FW_14.2.0"
+
 #define APP_BLE_CONN_CFG_TAG            1                                           /**< A tag identifying the SoftDevice BLE configuration. */
 
 #define APP_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2        /**< Reply when unsupported features are requested. */
@@ -377,6 +381,12 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 		APP_ERROR_CHECK(err_code);
 
 		printf("AT+MAC:%s\r\n", Util_convertBdAddr2Str(device_addr.addr));
+	}
+	
+	// Hardware/firmware/software version check: AT+VER?\r\n
+	else if((length == 9) && (strncmp((char*)pBuffer, "AT+VER?\r\n", 6) == 0))
+	{
+		printf("AT+VER:%s,%s,%s\r\n", HARDWARE_NUMBER, FIRMWARE_NUMBER, SOFTWARE_NUMBER);	
 	}	
 }
 

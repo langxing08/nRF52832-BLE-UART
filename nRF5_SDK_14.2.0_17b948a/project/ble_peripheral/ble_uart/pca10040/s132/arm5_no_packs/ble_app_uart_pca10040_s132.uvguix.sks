@@ -3399,9 +3399,9 @@
       </Doc>
       <Doc>
         <Name>..\..\..\main.c</Name>
-        <ColumnNumber>14</ColumnNumber>
-        <TopLine>341</TopLine>
-        <CurrentLine>353</CurrentLine>
+        <ColumnNumber>50</ColumnNumber>
+        <TopLine>76</TopLine>
+        <CurrentLine>46</CurrentLine>
         <Folding>1</Folding>
         <ContractedFolders></ContractedFolders>
         <PaneID>0</PaneID>
@@ -3428,11 +3428,11 @@
   </MDIGroups>
 
   <Bookmarks>
-    <ListItem>..\..\..\main.c 180</ListItem>
-    <ListItem>..\..\..\main.c 873</ListItem>
-    <ListItem>..\..\..\main.c 994</ListItem>
-    <ListItem>..\..\..\main.c 114</ListItem>
-    <ListItem>..\..\..\main.c 356</ListItem>
+    <ListItem>..\..\..\main.c 184</ListItem>
+    <ListItem>..\..\..\main.c 883</ListItem>
+    <ListItem>..\..\..\main.c 1004</ListItem>
+    <ListItem>..\..\..\main.c 118</ListItem>
+    <ListItem>..\..\..\main.c 360</ListItem>
   </Bookmarks>
 
 </ProjectGui>
