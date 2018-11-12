@@ -93,6 +93,15 @@ static ble_uuid_t m_adv_uuids[]          =                                      
 };
 
 
+typedef enum
+{
+	BLE_STATUS_DISCONNECTED = 0,// ble disconnected
+	BLE_STATUS_CONNECTED		// ble connected
+} ble_status_t;
+
+static ble_status_t 	ble_status 		= BLE_STATUS_DISCONNECTED;
+
+
 typedef struct ble_send_msg_tag{ 
 	uint16_t start;		// Data Start Offset
 	uint16_t max_len;	// Data Length
@@ -388,6 +397,13 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 	{
 		printf("AT+VER:%s,%s,%s\r\n", HARDWARE_NUMBER, FIRMWARE_NUMBER, SOFTWARE_NUMBER);	
 	}	
+	
+	// BLE connection status check: AT+STATUS?\r\n
+	else if((length == 12) && (strncmp((char*)pBuffer, "AT+STATUS?\r\n", 12) == 0))
+	{
+		printf("AT+STATUS:%X\r\n", ble_status);//ble_status
+	}
+	
 }
 
 /**@brief Function for feed WDT.
@@ -537,6 +553,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
+			ble_status = BLE_STATUS_CONNECTED;
+			printf("AT+STATUS:%X\r\n", ble_status);
             NRF_LOG_INFO("Connected");
             err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             APP_ERROR_CHECK(err_code);
@@ -544,6 +562,8 @@ static void ble_evt_handler(ble_evt_t const * p_ble_evt, void * p_context)
             break;
 
         case BLE_GAP_EVT_DISCONNECTED:
+			ble_status = BLE_STATUS_DISCONNECTED;
+			printf("AT+STATUS:%X\r\n", ble_status);
             NRF_LOG_INFO("Disconnected");
             // LED indication will be changed when advertising starts.
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
