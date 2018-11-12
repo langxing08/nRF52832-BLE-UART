@@ -85,6 +85,8 @@ BLE_ADVERTISING_DEF(m_advertising);                                             
 
 nrf_drv_wdt_channel_id m_channel_id;	// wdt channel id
 
+static uint16_t adv_interval = APP_ADV_INTERVAL;
+
 static uint16_t   m_conn_handle          = BLE_CONN_HANDLE_INVALID;                 /**< Handle of the current connection. */
 static uint16_t   m_ble_nus_max_data_len = BLE_GATT_ATT_MTU_DEFAULT - 3;            /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 static ble_uuid_t m_adv_uuids[]          =                                          /**< Universally unique service identifier. */
@@ -99,7 +101,7 @@ typedef enum
 	BLE_STATUS_CONNECTED		// ble connected
 } ble_status_t;
 
-static ble_status_t 	ble_status 		= BLE_STATUS_DISCONNECTED;
+static ble_status_t ble_status = BLE_STATUS_DISCONNECTED;
 
 
 typedef struct ble_send_msg_tag{ 
@@ -112,7 +114,7 @@ ble_send_msg_t g_send_msg;
 
 
 static uint32_t uart_init(uint32_t baudrate);
-
+static void advertising_init(void);
 
 /**@brief Function for the BLE send data which received by uart.
  *
@@ -483,6 +485,36 @@ static void AT_cmd_handle(uint8_t *pBuffer, uint16_t length)
 		else
 		{
 			printf("AT+TXPW:ERP\r\n");
+		}
+	}
+	
+	// Adv interval setup: AT+ADV=value\r\n
+	else if((length >= 10) && (strncmp((char*)pBuffer, "AT+ADV=", 7) == 0))
+	{
+		uint32_t adv_interval_temp;
+		sscanf((char*)pBuffer, "AT+ADV=%x\r\n", &adv_interval_temp);
+	
+		if((adv_interval_temp >= 0x0020) && (adv_interval_temp <= 0x4000))
+		{
+			adv_interval = adv_interval_temp;
+			
+			sd_ble_gap_adv_stop();
+
+			advertising_init();
+			err_code = ble_advertising_start(&m_advertising, BLE_ADV_MODE_FAST);
+			if(err_code == NRF_SUCCESS)
+			{
+				printf("AT+ADV:OK\r\n");
+			}
+			else
+			{
+				printf("AT+ADV:FAIL\r\n");
+			}
+			APP_ERROR_CHECK(err_code);
+		}
+		else
+		{
+			printf("AT+ADV:ERP\r\n");
 		}
 	}
 	
@@ -925,7 +957,7 @@ static void advertising_init(void)
     init.srdata.uuids_complete.p_uuids  = m_adv_uuids;
 
     init.config.ble_adv_fast_enabled  = true;
-    init.config.ble_adv_fast_interval = APP_ADV_INTERVAL;
+    init.config.ble_adv_fast_interval = adv_interval;
     init.config.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
 
     init.evt_handler = on_adv_evt;
