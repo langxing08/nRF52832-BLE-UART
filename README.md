@@ -16,30 +16,44 @@
 
 #### 2.1.1 Advertising Data
 
-![image](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/1-ADV_IND.png)
+![adv](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/1-ADV_IND.png)
 
 	Advertising Data 中 flag 值为 0x06，表示只支持 BLE，不支持 BR/EDR，通用发现模式。
 
 #### 2.1.2 Scan Response Data
+
+![scan](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/2-SCAN_RESP.png)
+
 	Scan Response Data 中包括服务 UUID 和设备名称。
 
 ### 2.2 服务Service
+
+![profile](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/3-Profile.png)
+
 	BLE_UART 的 profile 中包含 4 个首要服务(Primary Service)，包括Generic Access Service、Generic Attribute Service、Nordic UART Service 和 Device Information Service。
 	
 #### 2.2.1 Generic Access Service
-	该服务中包括Device Name、Appearance、Peripheral Preferred Connection Parameters和Central Address Resolution 4个特征值。服务的UUID和各个特征值的权限及UUID详见下图。
+	该服务中包括Device Name、Appearance、Peripheral Preferred Connection Parameters和Central Address Resolution 4个特征值。
+	服务的UUID和各个特征值的权限及UUID详见下图。
 
+![access](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/4-Generic%20Access%20Service.png)
+	
 	Device Name 特征值为设备名称。
 	Appearance 特征值为外观特性，本模块没有设置该值，默认值为0。
 	Peripheral Preferred Connection Parameters 特征值为周边设备推荐的连接参数，本模块默认值为连接间隔10ms - 30ms，从机延迟0，监督超时72*10=720ms。该连接参数也是iOS默认的连接参数。
 	Central Address Resolution 特征值为是否支持中央设备私有设备地址解析，BLE_UART 默认值为支持。
 
 #### 2.2.2 Generic Attribute Service
+
+![attribute](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/5-Generic%20Attribute%20Service.png)
+
 	该服务为空。
 
 #### 2.2.3 Nordic UART Service
 	该服务不是SIG定义的标准服务，是用户自定义服务。服务UUID和各特征值的权限及UUID见下图。该服务中包含RX和TX 2个特征值。
 
+![uart](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/6-Nordic%20Uart%20Service.png)
+	
 * RX特征值用于将中央设备通过BLE write到本模块的数据通过串口转发出去。BLE每包write最多支持 ATT_MTU(默认值为23，可通过ATT_MTU_UPDATED事件协商更改) - 3 个字节，如果中央设备需要发送的数据超过20字节，需要中央设备分包后再write，否则会导致write失败，甚至可能导致模块重启。
 * TX特征值用于将模块串口接收到的数据通过BLE以notify方式转发出去，每包最多 ATT_MTU - 3 个字节，如果串口接收到的数据超过 ATT_MTU - 3 个字节，则模块自动按照 ATT_MTU - 3 个字节分包发送。另外，如果串口接收到的数据为AT指令，则模块会进行相应的操作，并返回执行结果。注意：必须使能Notification才能将数据从本模块notify给中央设备。
 
