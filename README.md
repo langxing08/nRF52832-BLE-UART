@@ -18,13 +18,13 @@
 
 ![adv](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/1-ADV_IND.png)
 
-	Advertising Data 中 flag 值为 0x06，表示只支持 BLE，不支持 BR/EDR，通用发现模式。
+	BLE_UART 中 Advertising Data 的 PDU 格式为 ADV_IND。<br>flag 值为 0x06，表示只支持 BLE，不支持 BR/EDR，通用发现模式。<br>Device Name 为设备名称。
 
 #### 2.1.2 Scan Response Data
 
 ![scan](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/2-SCAN_RESP.png)
 
-	Scan Response Data 中包括服务 UUID 和设备名称。
+	Scan Response Data 中包括服务 UUID，为 128 位自定义 UUID。
 
 ### 2.2 服务Service
 
