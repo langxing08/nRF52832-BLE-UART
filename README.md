@@ -15,6 +15,9 @@
 	广播数据包包括 Advertising Data 和 Scan Response Data。
 
 #### 2.1.1 Advertising Data
+
+![](https://github.com/langxing08/nRF52832-BLE-UART/blob/master/picture/1-ADV_IND.png)
+
 	Advertising Data 中 flag 值为 0x06，表示只支持 BLE，不支持 BR/EDR，通用发现模式。
 
 #### 2.1.2 Scan Response Data
