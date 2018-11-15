@@ -50,7 +50,7 @@
 
 #define APP_FEATURE_NOT_SUPPORTED       BLE_GATT_STATUS_ATTERR_APP_BEGIN + 2        /**< Reply when unsupported features are requested. */
 
-#define DEVICE_NAME                     "Nordic_UART"                               /**< Name of device. Will be included in the advertising data. */
+#define DEVICE_NAME                     "BLE_UART"                               /**< Name of device. Will be included in the advertising data. */
 #define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
 
 #define APP_BLE_OBSERVER_PRIO           3                                           /**< Application's BLE observer priority. You shouldn't need to modify this value. */
@@ -77,6 +77,8 @@
 const nrf_drv_timer_t TIMER_UART_RX = NRF_DRV_TIMER_INSTANCE(2);					/**< Timer ID: Timer2. */											
 static uint8_t 	UART_RX_BUF[UART_RX_BUF_SIZE] = {0};					  			/**< uart receive buffer. */	
 static uint16_t UART_RX_STA = 0;
+
+static uint8_t 	device_name[21] = "BLE_UART_112233445566";
 
 APP_TIMER_DEF(wdt_feed_timer_id);													/**< WDT feed delay timer instance. */
 BLE_NUS_DEF(m_nus);                                                                 /**< BLE NUS service instance. */
@@ -277,10 +279,22 @@ static void gap_params_init(void)
     ble_gap_conn_sec_mode_t sec_mode;
 
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
-
+	
+	// device name : BLE_UART + MAC Address
+	// Get BLE address.
+	ble_gap_addr_t device_addr;
+    #if (NRF_SD_BLE_API_VERSION >= 3)
+        err_code = sd_ble_gap_addr_get(&device_addr);
+    #else
+        err_code = sd_ble_gap_address_get(&device_addr);
+    #endif
+    APP_ERROR_CHECK(err_code);
+	
+	memcpy(device_name + 9, Util_convertBdAddr2Str(device_addr.addr), (BLE_GAP_ADDR_LEN*2));
+	
     err_code = sd_ble_gap_device_name_set(&sec_mode,
-                                          (const uint8_t *) DEVICE_NAME,
-                                          strlen(DEVICE_NAME));
+                                          (const uint8_t *) device_name,
+                                          sizeof(device_name));
     APP_ERROR_CHECK(err_code);
 
     memset(&gap_conn_params, 0, sizeof(gap_conn_params));
