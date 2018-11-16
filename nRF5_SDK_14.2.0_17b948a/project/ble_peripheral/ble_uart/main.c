@@ -55,7 +55,7 @@
 
 #define APP_BLE_OBSERVER_PRIO           3                                           /**< Application's BLE observer priority. You shouldn't need to modify this value. */
 
-#define APP_ADV_INTERVAL                MSEC_TO_UNITS(40, UNIT_0_625_MS)			/**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
+#define APP_ADV_INTERVAL                MSEC_TO_UNITS(20, UNIT_0_625_MS)			/**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS      0											/**< The advertising timeout (in units of seconds). */
 
 #define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
@@ -143,8 +143,8 @@ static uint32_t send_data(void)
 
 		err_code = ble_nus_string_send(&m_nus, pdata + start, &temp_len); 
 		
-//		NRF_LOG_INFO("BLE notify:");
-//		NRF_LOG_HEXDUMP_INFO(pdata + start, temp_len);	
+		NRF_LOG_INFO("BLE notify:");
+		NRF_LOG_HEXDUMP_INFO(pdata + start, temp_len);	
 		
 		if (NRF_SUCCESS == err_code)
 		{ 
